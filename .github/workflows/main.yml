@@ -1,0 +1,56 @@
+name: Run AFK Bot 24/7
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 */5 * * *'
+
+jobs:
+  afk-bot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 330
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Mineflayer
+        run: npm install mineflayer
+
+      - name: Start AFK Bot
+        run: |
+          cat << 'EOF' > bot.js
+          const mineflayer = require('mineflayer');
+
+          function startBot() {
+            const bot = mineflayer.createBot({
+              host: 'sokhengmc1.mcsh.gg',
+              port: 25565,
+              username: 'AFK_Bot247',
+              version: '1.21.4',
+              auth: 'offline'
+            });
+
+            bot.on('spawn', () => {
+              console.log('Bot joined sokhengmc1.mcsh.gg successfully!');
+              setInterval(() => {
+                bot.setControlState('jump', true);
+                setTimeout(() => bot.setControlState('jump', false), 500);
+              }, 30000);
+            });
+
+            bot.on('kicked', (reason) => console.log('Kicked:', reason));
+            bot.on('error', (err) => console.log('Error:', err.message));
+            bot.on('end', () => {
+              console.log('Disconnected. Reconnecting in 10s...');
+              setTimeout(startBot, 10000);
+            });
+          }
+
+          startBot();
+          EOF
+          node bot.js
