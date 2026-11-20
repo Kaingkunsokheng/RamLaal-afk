@@ -1,0 +1,91 @@
+name: Run AI Bot 24/7
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 */5 * * *'
+
+jobs:
+  ai-bot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 330
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install AI Libraries
+        run: npm install mineflayer mineflayer-pathfinder mineflayer-pvp
+
+      - name: Start AI Bot
+        run: |
+          cat << 'EOF' > ai_bot.js
+          const mineflayer = require('mineflayer');
+          const { pathfinder, Movements, goals } = require('mineflayer-pathfinder');
+          const pvp = require('mineflayer-pvp').plugin;
+
+          function startAIBot() {
+            const bot = mineflayer.createBot({
+              host: 'sokhengmc1.mcsh.gg',
+              port: 25565,
+              username: 'AI_Helper247',
+              version: '1.21.4',
+              auth: 'offline'
+            });
+
+            bot.loadPlugin(pathfinder);
+            bot.loadPlugin(pvp);
+
+            let guardPos = null;
+
+            bot.on('spawn', () => {
+              console.log('AI_Helper247 joined sokhengmc1.mcsh.gg!');
+              const defaultMove = new Movements(bot);
+              bot.pathfinder.setMovements(defaultMove);
+              bot.chat('សួស្តី! AI_Helper247 រួចរាល់សម្រាប់ជួយអ្នកហើយ!');
+            });
+
+            bot.on('chat', (username, message) => {
+              if (username === bot.username) return;
+              const target = bot.players[username] ? bot.players[username].entity : null;
+
+              if (message === 'come') {
+                if (!target) {
+                  bot.chat('ខ្ញុំមើលមិនឃើញអ្នកទេ សូមដើរមកជិតបន្តិច!');
+                  return;
+                }
+                bot.chat('កំពុងរត់ទៅរក ' + username + '!');
+                bot.pathfinder.setGoal(new goals.GoalFollow(target, 2), true);
+              }
+
+              if (message === 'stop') {
+                guardPos = null;
+                bot.pvp.stop();
+                bot.pathfinder.setGoal(null);
+                bot.chat('ឈប់ដើរហើយ!');
+              }
+
+              if (message === 'guard') {
+                guardPos = bot.entity.position.clone();
+                bot.chat('កំពុងយាមកន្លែងនេះ ការពារសត្វចម្លែក!');
+              }
+            });
+
+            // AI ស្វែងរក និងវាយសត្វចម្លែកដែលមកជិតដោយស្វ័យប្រវត្តិពេលបើក Guard
+            bot.on('physicsTick', () => {
+              if (!guardPos) return;
+              const filter = e => e.type === 'mob' && e.position.distanceTo(bot.entity.position)  console.log('Kicked:', reason));
+            bot.on('error', (err) => console.log('Error:', err.message));
+            bot.on('end', () => {
+              console.log('Disconnected. Reconnecting in 10s...');
+              setTimeout(startAIBot, 10000);
+            });
+          }
+
+          startAIBot();
+          EOF
+          node ai_bot.js
