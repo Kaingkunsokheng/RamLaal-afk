@@ -1,4 +1,4 @@
-name: Run AI Bot 24/7
+name: Run 2 Bots 24/7
 
 on:
   workflow_dispatch:
@@ -6,7 +6,7 @@ on:
     - cron: '0 */5 * * *'
 
 jobs:
-  ai-bot:
+  two-bots:
     runs-on: ubuntu-latest
     timeout-minutes: 330
     steps:
@@ -15,21 +15,41 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Install AI & Viewer Libraries
-        run: |
-          npm install mineflayer mineflayer-pathfinder mineflayer-pvp prismarine-viewer
-          npm install -g localtunnel
+      - name: Install Libraries
+        run: npm install mineflayer mineflayer-pathfinder mineflayer-pvp
 
-      - name: Start AI Bot with Live Viewer
+      - name: Start Bot 1 (AFK) and Bot 2 (AI)
         run: |
-          cat << 'EOF' > ai_bot.js
+          cat << 'EOF' > bots.js
           const mineflayer = require('mineflayer');
           const { pathfinder, Movements, goals } = require('mineflayer-pathfinder');
           const pvp = require('mineflayer-pvp').plugin;
-          const mineflayerViewer = require('prismarine-viewer').mineflayer;
 
-          function startAIBot() {
-            const bot = mineflayer.createBot({
+          // --- BOT 1: AFK BOT ---
+          function startBot1() {
+            const bot1 = mineflayer.createBot({
+              host: 'sokhengmc1.mcsh.gg',
+              port: 25565,
+              username: 'AFK_Bot247',
+              version: '1.21.4',
+              auth: 'offline'
+            });
+
+            bot1.on('spawn', () => {
+              console.log('Bot 1 (AFK_Bot247) joined!');
+              setInterval(() => {
+                bot1.setControlState('jump', true);
+                setTimeout(() => bot1.setControlState('jump', false), 500);
+              }, 30000);
+            });
+
+            bot1.on('end', () => setTimeout(startBot1, 10000));
+            bot1.on('error', (err) => console.log('Bot 1 Error:', err.message));
+          }
+
+          // --- BOT 2: AI BOT ---
+          function startBot2() {
+            const bot2 = mineflayer.createBot({
               host: 'sokhengmc1.mcsh.gg',
               port: 25565,
               username: 'AI_Helper247',
@@ -37,45 +57,43 @@ jobs:
               auth: 'offline'
             });
 
-            bot.loadPlugin(pathfinder);
-            bot.loadPlugin(pvp);
+            bot2.loadPlugin(pathfinder);
+            bot2.loadPlugin(pvp);
 
             let guardPos = null;
 
-            bot.once('spawn', () => {
-              mineflayerViewer(bot, { port: 3007, firstPerson: true });
-              console.log('Viewer started on port 3007');
+            bot2.on('spawn', () => {
+              console.log('Bot 2 (AI_Helper247) joined!');
+              const defaultMove = new Movements(bot2);
+              bot2.pathfinder.setMovements(defaultMove);
+              bot2.chat('AI_Helper247 និង AFK_Bot247 បានចូលរួចរាល់ហើយ!');
             });
 
-            bot.on('spawn', () => {
-              const defaultMove = new Movements(bot);
-              bot.pathfinder.setMovements(defaultMove);
-            });
-
-            bot.on('chat', (username, message) => {
-              if (username === bot.username) return;
-              const target = bot.players[username] ? bot.players[username].entity : null;
+            bot2.on('chat', (username, message) => {
+              if (username === bot2.username || username === 'AFK_Bot247') return;
+              const target = bot2.players[username] ? bot2.players[username].entity : null;
 
               if (message === 'come' && target) {
-                bot.pathfinder.setGoal(new goals.GoalFollow(target, 2), true);
+                bot2.pathfinder.setGoal(new goals.GoalFollow(target, 2), true);
               }
               if (message === 'stop') {
                 guardPos = null;
-                bot.pvp.stop();
-                bot.pathfinder.setGoal(null);
+                bot2.pvp.stop();
+                bot2.pathfinder.setGoal(null);
               }
               if (message === 'guard') {
-                guardPos = bot.entity.position.clone();
+                guardPos = bot2.entity.position.clone();
               }
             });
 
-            bot.on('physicsTick', () => {
+            bot2.on('physicsTick', () => {
               if (!guardPos) return;
-              const filter = e => e.type === 'mob' && e.position.distanceTo(bot.entity.position)  setTimeout(startAIBot, 10000));
+              const filter = e => e.type === 'mob' && e.position.distanceTo(bot2.entity.position)  setTimeout(startBot2, 10000));
+            bot2.on('error', (err) => console.log('Bot 2 Error:', err.message));
           }
 
-          startAIBot();
+          // ចាប់ផ្តើម Bot ទី 1 ភ្លាមៗ និង Bot ទី 2 ក្រោយ 5 វិនាទី (កុំឱ្យ Server ទាត់ចេញដោយសារចូលជាន់គ្នា)
+          startBot1();
+          setTimeout(startBot2, 5000);
           EOF
-          node ai_bot.js &
-          sleep 5
-          lt --port 3007
+          node bots.js
