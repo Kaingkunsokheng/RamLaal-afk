@@ -62,21 +62,42 @@ jobs:
               console.log('Bot 2 (AI_Helper247) joined!');
               const defaultMove = new Movements(bot2);
               bot2.pathfinder.setMovements(defaultMove);
-              bot2.chat('AI_Helper247 និង AFK_Bot247 បានចូលរួចរាល់ហើយ!');
+              bot2.chat('AI_Helper247 បានចូលរួចរាល់ហើយ!');
             });
 
-            bot2.on('chat', (username, message) => {
-              if (username === bot2.username || username === 'AFK_Bot247') return;
-              const target = bot2.players[username] ? bot2.players[username].entity : null;
+            // អានគ្រប់សារទាំងអស់ក្នុង Chat (ដំណើរការជាមួយ Bedrock, Geyser និងគ្រប់ Plugin Chat)
+            bot2.on('messagestr', (msg) => {
+              if (msg.includes('AI_Helper247')) return;
+              const text = msg.toLowerCase();
 
-              if (message === 'come' && target) {
+              // ស្វែងរកអ្នកលេងដែលនៅជិត Bot បំផុត ឬឈ្មោះអ្នកលេងក្នុងសារ
+              let target = null;
+              for (const name of Object.keys(bot2.players)) {
+                if (name !== 'AI_Helper247' && name !== 'AFK_Bot247' && msg.includes(name)) {
+                  target = bot2.players[name]?.entity;
+                  break;
+                }
+              }
+              if (!target) {
+                target = bot2.nearestEntity(e => e.type === 'player' && e.username !== 'AFK_Bot247');
+              }
+
+              if (text.endsWith('come') || text.includes(': come') || text.includes('> come')) {
+                if (!target) {
+                  bot2.chat('ខ្ញុំមើលមិនឃើញអ្នកទេ សូមដើរមកជិតបន្តិច!');
+                  return;
+                }
+                bot2.chat('កំពុងរត់ទៅរកអ្នក!');
                 bot2.pathfinder.setGoal(new goals.GoalFollow(target, 2), true);
               }
-              if (message === 'stop') {
+
+              if (text.endsWith('stop') || text.includes(': stop') || text.includes('> stop')) {
                 guardMode = false;
                 bot2.pathfinder.setGoal(null);
+                bot2.chat('ឈប់ហើយ!');
               }
-              if (message === 'guard') {
+
+              if (text.endsWith('guard') || text.includes(': guard') || text.includes('> guard')) {
                 guardMode = true;
                 bot2.chat('កំពុងយាមការពារសត្វចម្លែក!');
               }
